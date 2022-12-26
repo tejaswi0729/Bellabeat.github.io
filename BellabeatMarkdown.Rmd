@@ -1,4 +1,4 @@
-ge---
+---
 title: "BellabeatDoc"
 author: "Tejaswi"
 date: "2022-12-25"
