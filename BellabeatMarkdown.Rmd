@@ -1,0 +1,255 @@
+ge---
+title: "BellabeatDoc"
+author: "Tejaswi"
+date: "2022-12-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Welcome to the Bellabeat data analysis case study!The Bellabeat app provides users with health data related to their activity, sleep, stress,menstrual cycle, and mindfulness habits.The Bellabeat app connects to their line of smart wellness products.
+
+## Scenario
+
+I am a junior data analyst working on the marketing analyst team at Bellabeat, a high-tech manufacturer of health-focused
+products for women. Bellabeat is a successful small company, but they have the potential to become a larger player in the
+global smart device market. we have been asked to focus on one of Bellabeat’s products and analyze smart device data to gain insight into how consumers are using their smart devices. The insights we discover will then help guide marketing strategy for the company. we will present our analysis to the Bellabeat executive team along with our high-level recommendations for Bellabeat’s marketing strategy.
+
+## key stakeholders
+* Urška Sršen: Bellabeat’s cofounder and Chief Creative Officer
+* Sando Mur: Mathematician and Bellabeat’s cofounder; key member of the Bellabeat executive team
+* Bellabeat marketing analytics team: A team of data analysts responsible for collecting, analyzing, and reporting data that helps guide Bellabeat’s marketing strategy. I joined this team six months ago and have been busy learning about Bellabeat’’s mission and business goals — as well as how you, as a junior data analyst,
+can help Bellabeat achieve them.
+
+## Business Task
+To focus on one of Bellabeat’s products and analyze smart device data to gain insight into how consumers are using their smart devices. The insights you discover will then help guide marketing strategy for the company.
+
+
+## preparing Data
+
+* The data has been made available by [Mobius](https://www.kaggle.com/arashnic). 
+* This Kaggle data set contains personal fitness tracker from thirty fitbit users. Thirty eligible Fitbit users consented to the submission of personal tracker data, including minute-level output for physical activity, heart rate, and sleep monitoring. It includes information about daily activity, steps, and heart rate that can be used to explore users’ habits.
+* Citation - The data is available on https://www.kaggle.com/datasets/arashnic/fitbit 
+
+#### Installing and loading Required packages
+
+
+use install.packages() to install required packages for further analysis.
+loading the packages 
+
+
+```{r loading packages}
+library(tidyverse)
+library(readr)
+library(lubridate)
+library(ggplot2)
+library(ggpubr)
+library(RColorBrewer)
+library(scales)
+library(waffle)
+library(janitor)
+
+```
+#### collecting data
+
+to know the working directory use getwd() and ti set the directory and further collect data setwd()
+after setting the directory, collect the required data sets.
+
+```{r collecting data}
+daily_activity <- read_csv("dailyActivity_merged.csv")
+daily_sleep <- read_csv("sleepDay_merged.csv")
+```
+
+#### a quick preview of data
+
+we can also use View() function. to view the data set.
+
+```{r preview of data}
+head(daily_activity)
+str(daily_activity)
+
+head(daily_sleep)
+str(daily_sleep)
+
+```
+
+#### verifying data
+
+to verify the data, we check the number of users, check if there are any duplicates in the data, check if there are any null values in data. 
+
+```{r check number of distinct rows}
+n_distinct(daily_activity$Id)
+n_distinct(daily_sleep$Id)
+```
+
+verify if there are any null values in the dataset
+
+```{r verify null values}
+sum(is.null(daily_activity))
+sum(is.null(daily_sleep))
+```
+
+verify if there are any duplicate values in the dataset
+
+```{r verify duplicate values}
+sum(duplicated(daily_activity))
+sum(duplicated(daily_sleep))
+```
+
+As we can see that there are three duplicate values in daily_sleep dataset. we need to handle and make sure that there are no duplicates in dataset
+
+```{r handling duplicate rows}
+daily_sleep <- unique(daily_sleep)
+sum(duplicated(daily_sleep))
+
+```
+
+#### cleaning data
+
+using clean_names() function to make sure that all column names or fields are in proper format and consistent.
+
+```{r to clean_names()}
+daily_activity <- daily_activity %>% 
+  clean_names()
+daily_sleep <- daily_sleep %>% 
+  clean_names()
+```
+
+
+checking the activity date format in both daily_activity and  daily_sleep dataset, we can see that data type of activity_date is character, it needs to be converted into date format, and also rename the sleep_day column in daily_sleep dataset to activity_date.
+
+```{r handling the date formats}
+daily_activity <- mutate(daily_activity, activity_date = as.Date(activity_date, "%m/%d/%Y"))
+head(daily_activity) #check the data type of activity_date now
+daily_sleep <- mutate(daily_sleep, sleep_day = as.Date(sleep_day, "%m/%d/%Y %I:%M:%S %p")) %>% 
+  rename(activity_date = sleep_day)
+
+```
+
+adding a day of week column to daily_activity data set to get the insights of steps,calories, through out a week.
+
+```{r adding day_of_week column to daily_activity}
+daily_activity$day_of_week <- format(as.Date(daily_activity$activity_date),"%A")
+```
+
+
+using summary function to get some more insights on total_steps in daily_activity dataset.to know the minimum, maximum and average steps
+
+```{r summary on total_steps}
+summary(daily_activity$total_steps)
+filter(daily_activity,total_steps == 0) # as from above summary we see minimum steps as zero
+daily_activity <- daily_activity[daily_activity$total_steps > 0,]
+summary(daily_activity$total_steps)
+
+```
+
+performing inner join on daily_activity and daily_sleep by using id and activity_date columns as they are common in both datasets.
+
+```{r performing inner join}
+daily_sleep <- inner_join(daily_activity, daily_sleep, c("id","activity_date"))
+head(daily_sleep)
+
+```
+
+
+try to get some insights on the total time slept and total time spent on bed.use summary to get min, max and average of time sent on sleep
+
+```{r summary on sleep time}
+daily_sleep %>% 
+  select(total_minutes_asleep, total_time_in_bed) %>% 
+  drop_na() %>% 
+  summary()
+
+```
+
+using summary function to get insights on calories,setps,and active minutes from daily_activity dataset
+
+```{r summary on steps,calories,active minutes}
+daily_activity %>% 
+  select(total_steps, very_active_minutes, fairly_active_minutes, lightly_active_minutes, sedentary_minutes, calories) %>% 
+  drop_na() %>% 
+  summary()
+
+```
+
+
+ordering the day_of_week column in daily_sleep and daily_activity column as the order of days is supposed to be 'sunday','monday','tuesday,'wednesday','thursday','friday','saturday'.
+
+```{r ordering day_of_week}
+daily_sleep$day_of_week <- ordered(daily_sleep$day_of_week, levels = c('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'))
+daily_activity$day_of_week <- ordered(daily_activity$day_of_week, levels = c('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'))
+```
+
+visualizing the minutes of sleep on average on each weekday
+
+```{r visualizing minutes of sleep on each weekday}
+daily_sleep %>% 
+  group_by(day_of_week) %>% 
+  summarise(average_time_asleep = mean(total_minutes_asleep), average_time_in_bed = mean(total_time_in_bed)) %>% 
+  arrange(day_of_week) %>% 
+  ggplot(aes(x=day_of_week, y=average_time_asleep, fill=day_of_week)) + geom_col(position = 'dodge') + labs(title="Average sleep time along the week days")
+
+```
+
+* from the above visualization we can say that average time of sleep in more on sunday and wednesday and looks like the average minutes asleep does not differ much along the week. asleep minutes does not seem to be affected by any activities on weekdays.
+
+visualizing on total_minutes_asleep and total_time_in_bed
+
+```{r visualizing minutes_asleep and time_in_bed}
+daily_sleep %>% 
+  ggplot(aes(x=total_minutes_asleep,y=total_time_in_bed)) +
+  geom_jitter(alpha=.5) +
+  geom_rug(position="jitter",size = .08) +
+  geom_smooth(size=.6) +
+  stat_cor(method="pearson") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face="bold")) +
+  labs(title="daily time-asleep vs in bed")
+
+```
+
+
+from the above visualization we would know that -
+
+* total_minutes_asleep is correlated with total_time_in_bed, with correlation coefficient as 0.93
+
+
+Visualizing on total_steps and calories
+
+```{r total_steps vs calories}
+daily_activity %>% 
+  ggplot(aes(x=total_steps,y=calories)) +
+  geom_jitter(alpha=.5) +
+  geom_rug(position="jitter", size = .08) +
+  geom_smooth(size = .6) +
+  stat_cor(method="pearson", label.x = 20000, label.y = 2300) +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face="bold")) +
+  labs(title="daily steps vs calories")
+
+```
+
+
+visualizing on total_steps and total_minutes_asleep
+
+```{r total steps vs minutes asleep}
+daily_sleep %>% 
+  ggplot(aes(x=total_steps, y=total_minutes_asleep)) +
+  geom_jitter(apha=.5) +
+  geom_rug(position = "jitter", size = .08) +
+  geom_smooth(size = .6) +
+  stat_cor(method="pearson", label.x = 15000, label.y = 650) +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold")) +
+  labs(title="daily steps vs daily sleep(in min)")
+
+```
+
+from above visualizations, we get to know that
+
+* total steps has positive correlation with calories with correlation coefficient as 0.56
+* There is no correlation between total_steps and total_minutes_asleep. as the correlation coefficient is closer to 0.
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
