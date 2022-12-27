@@ -62,6 +62,10 @@ after setting the directory, collect the required data sets.
 ```{r collecting data}
 daily_activity <- read_csv("dailyActivity_merged.csv")
 daily_sleep <- read_csv("sleepDay_merged.csv")
+hourly_calories <- read_csv("hourlyCalories_merged.csv")
+hourly_steps <- read_csv("hourlySteps_merged.csv")
+weightLog_info <- read_csv("weightLogInfo_merged.csv")
+
 ```
 
 #### a quick preview of data
@@ -116,6 +120,12 @@ using clean_names() function to make sure that all column names or fields are in
 daily_activity <- daily_activity %>% 
   clean_names()
 daily_sleep <- daily_sleep %>% 
+  clean_names()
+hourly_calories <- hourly_calories %>% 
+  clean_names()
+hourly_steps <- hourly_steps %>% 
+  clean_names()
+weightLog_info <- weightLog_info %>% 
   clean_names()
 ```
 
@@ -251,5 +261,114 @@ from above visualizations, we get to know that
 * total steps has positive correlation with calories with correlation coefficient as 0.56
 * There is no correlation between total_steps and total_minutes_asleep. as the correlation coefficient is closer to 0.
 
+
+#### Categorizing users based on their daily steps
+
+from this [article](https://www.10000steps.org.au/articles/healthy-lifestyles/counting-steps/) I have got some measures to categorize user's based on their daily steps
+
+* Sedentary is less than 5,000 steps per day(<5000)
+* Low active is 5,000 to 7,499 steps per day(>5000 and <7500)
+* Fairly active is 7,500 to 9,999 steps per day(>7500 and <10000)
+* Active is more than 10,000 steps per day
+
+
+```{r categorize based on daily steps}
+type_of_user_by_steps <- daily_activity %>% 
+  select(id, total_steps, calories) %>% 
+  group_by(id) %>% 
+  summarise(daily_average_steps = mean(total_steps), daily_average_calories = mean(calories)) %>% 
+  mutate(user_type = case_when(
+    daily_average_steps < 5000 ~ "Sedentary",
+    daily_average_steps >= 5000 & daily_average_steps < 7500 ~ "Lightly Active",
+    daily_average_steps >= 7500 & daily_average_steps < 10000 ~ "Fairly Active",
+    daily_average_steps >=10000 ~ "Very Active"
+  ))
+
+head(type_of_user_by_steps)
+
+
+```
+
+to calculate percentage of each type of users so we can create user_type_percentage
+
+```{r calculating percentage by user_type}
+user_type_percentage <- type_of_user_by_steps %>% 
+  group_by(user_type) %>% 
+  summarise(total = n()) %>% 
+  mutate(totals = sum(total)) %>% 
+  group_by(user_type) %>% 
+  summarise(total_percentage = total/totals) %>% 
+  mutate(labels = scales::percent(total_percentage))
+
+user_type_percentage$user_type <- factor(user_type_percentage$user_type, levels=c("Very Active","Fairly Active","Lightly Active","Sedentary"))
+
+head(user_type_percentage)
+
+```
+
+visualizing with pie chart on user types categorized by total_steps
+
+```{r visualizing pie chart}
+user_type_percentage %>% 
+  ggplot(aes(x="",y=total_percentage,fill=user_type)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold")) +
+  geom_text(aes(label = labels),
+            position = position_stack(vjust=0.5)) +
+  guides(fill = guide_legend(title = "user type")) +
+  labs(title = "User Type Distribution")
+
+
+```
+
+
+
+#### Hourly steps through out the week days
+
+going though the hourly steps and group by activity date and time and add day_of_week column
+
+```{r hourly_steps}
+hourly_steps <- hourly_steps %>% 
+  separate(activity_hour,into = c("activity_date","activity_time"), sep=" ")
+
+hourly_steps$day_of_week <- format(as.Date(hourly_steps$activity_date), "%A")
+head(hourly_steps)
+```
+
+
+create steps_on_weekday to get aggregated total steps on each weekday and activity_time
+
+```{r steps_on_weekday}
+steps_on_weekday <- hourly_steps %>% 
+  select(day_of_week, activity_time, step_total) %>% 
+  group_by(day_of_week, activity_time) %>% 
+  summarize(average_steps=round(mean(step_total)))
+
+steps_on_weekday$day_of_week <- ordered(steps_on_weekday$day_of_week, levels = c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"))
+
+```
+
+Visualizing steps_on_week on a heatmap
+
+```{r visualizing steps_on_weekday}
+steps_on_weekday %>% 
+  ggplot(aes(x=activity_time, y=day_of_week, fill=average_steps)) +
+  theme(axis.text.x=element_text(angle=90)) +
+  labs(title="Activity time during the week", x=" ", y=" ", fill="average\nsteps") +
+  scale_fill_gradient(low = "white", high="blue") +
+  geom_tile(color="white",lwd=.6,linetype=1) +
+  coord_fixed() +
+  theme(plot.title=element_text(hjust=0.5, vjust=0.8, size=16), panel.background=element_blank())
+
+
+```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
