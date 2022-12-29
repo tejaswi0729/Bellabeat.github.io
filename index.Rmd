@@ -339,6 +339,7 @@ going though the hourly steps and group by activity date and time and add day_of
 hourly_steps <- hourly_steps %>% 
   separate(activity_hour,into = c("activity_date","activity_time"), sep=" ")
 
+hourly_steps <- mutate(hourly_steps, activity_date = as.Date(activity_date, "%m/%d/%Y"))
 hourly_steps$day_of_week <- format(as.Date(hourly_steps$activity_date), "%A")
 head(hourly_steps)
 ```
@@ -370,5 +371,23 @@ steps_on_weekday %>%
 
 
 ```
+
+
+## Act - Recommendation
+
+In order to respond to the business task and help bellabeat, I would suggest to use our own tracking data for any further analysis and as the data was limited to few months, the findings could not be accurate. and if we want to focus on certain age group of people then it would be helpful if we have more specific data to further observe the trends and drive some insights from it.
+
+below are the findings, from analysis:
+* from the above summary of total_steps we can see that average steps are 8319, but it is said that 10,000 steps per day would be good for an healthy adult.
+
+* On average,the users seem to sleep more om sundays and wednesday, though there is not much difference of sleep on other week days.
+
+* the time users spend in bed and time asleep are correlated. which seems like users fall into sleep quickly once they rest on bed. there are not many signs of insomnia among users.
+
+* The total_steps in a day is positively correlated with calories burnt in a day.
+
+* Sedentary type users are of 27.3% and they need to be encouraged to take more steps and some physical exercise, to stay healthy.
+
+* The average steps taken by the users are more during the time frame of 6pm to 9pm on the week days
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
